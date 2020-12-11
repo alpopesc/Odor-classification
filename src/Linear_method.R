@@ -27,7 +27,7 @@ remove_zeros_col <- function(data) {
   data
 }
 
-data <- remove_zeros_col(raw_data)
+data <- remove_zeros_col(data)
 data$VALENCE.PLEASANTNESS <- NULL
 
 # Splitting the data into training and validation sets
