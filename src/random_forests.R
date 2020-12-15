@@ -29,7 +29,7 @@ data <- remove_constants(data[,3:ncol(data)])
 
 # avec cutoff = 0.90 -> 851 variables
 # cutoff = 0.99 -> 1828 variables
-data_cor <- cor(as.matrix(data[,2:ncol(data)]))
+data_cor <- cor(as.matrix(data))
 hc <- findCorrelation(data_cor, cutoff=0.99) 
 data <- data[,-c(sort(hc))]
 data$SWEETORSOUR <- data_SWEETORSOUR
@@ -54,7 +54,7 @@ data.validation <- data[-idx.train,]
 #by default ntree = 500
 forests <- randomForest(SWEETORSOUR ~ ., data.train, ntree = 100)
 plot(forests)
-#it seems that error rate is stabilized after roughly 150 trees
+#it seems that error rate is stabilized after roughly 100 trees
 predValid <- predict(forests, data.validation, type = "class")
 forests.ROCRpred <- prediction(predValid, data.validation$SWEETORSOUR)
 forests.ROCRperf <- performance(forests.ROCRpred, 'tpr', 'fpr')
