@@ -59,7 +59,7 @@ tf
 barplot(t(tf))
 barplot(tf)
 
- 
+#we see the data is slightly imbalanced 
 
 library(pheatmap)
 predictor_matrix <- remove_constants(d[,-3])
@@ -75,8 +75,8 @@ View(correlation_matrix)
 #Note that it is not necessary to normalize the data we will suppose that the measurement of each sample ist the same
 
 predictor_matrix_sc <- scale(predictor_matrix)
-pca <- prcomp(predictor_matrix_sc, scale = F, center = T)
-pca.data <- data.frame(X=pca$x[,1], Y=pca$x[,2], Z = pca$x[,3])
+pca <- prcomp(predictor_matrix_sc, scale = T, center = T)
+pca.data <- data.frame(X=pca$x[,1], Y=pca$x[,2])
 plot(pca.data)
 
 
@@ -88,61 +88,38 @@ barplot(pca.var.per[1:50], main="Scree Plot", xlab="Principal Component", ylab="
 
 library(ggplot2)
 cl <- kmeans(data.frame(pca$x), centers=30, nstart=500)
-p <-ggplot(pca.data, aes(x = X, y = Y, z = Z, col = cl$cluster) ) +
+p <-ggplot(pca.data, aes(x = X, y = Y, col = cl$cluster) ) +
   geom_point() +
   xlab(paste("PC1 - ", pca.var.per[1], "%", sep="")) +
-  ylab(paste("PC2 - ", pca.var.per[2], "%", sep="")) +
-  zlab(paste("PC3 - ", pca.var.per[3], "%", sep=""))
+  ylab(paste("PC2 - ", pca.var.per[2], "%", sep="")) 
 p + scale_color_gradient(low="green", high="red")
 
-View(cl)
+
 
 library(dplyr)
-library(pca3d)
 o <- order(d$SWEETORSOUR)
 pca_col <- c(rep(2,nrow(d)), rep(3,nrow(d)))
-plot(pca.data[o,], col= pca_col[d$SWEETORSOUR[o]])
+plot(pca.data[o,], col= pca_col[d$SWEETORSOUR[o] == 1])
 View(d)
-pca3d(pca, col = d$SWEETORSOUR +2)
 
 
-#In the previous plot we were able to see that sweet and sour data overlaps
-#To see if this overlap is due to the projection or random we can do the t-SNE
+
+
 
 library(Rtsne)
 tsne <- Rtsne(predictor_matrix,check_duplicates = F)
-plot(tsne$Y[o,], col = pca_col[d$SWEETORSOUR[o]])
+plot(tsne$Y[o,], col = pca_col[d$SWEETORSOUR[o] == 1])
 
 
 
-
-#We can see that the overlap still persists which is probably just due to the 
-
-
-#Another thing that would be nice to fo for the linear model is to analyse the data in a way that
-#allows us to choose the best linear classification model(linear or nonlinear).
-#One way to that would be in what way the predictors would be normally distributed or not
-
-#Do not forget to code the function for the outliers
-
-#Procedure for
-
-#Also a principal regression does not really make sense because no the no clear cluster could be found.
-#There is a quite big overlap which is why linear methods seem to fail here
-
-
-shapiro.test(d$SWEETORSOUR)
 
 normality_pval <- function(de){
     shapiro.test(de)$p.value
 }
 
-shapiro.test(d$MW)
-
 normality_score <- function(data){
   c <- 0
   for(i in colnames(data)){
-    print(unlist(data[i]))
     p <- normality_pval(unlist(data[i]))
     if(p > 0.05){
       c <- c + 1
