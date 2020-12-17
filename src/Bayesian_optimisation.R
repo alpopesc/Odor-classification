@@ -1,3 +1,4 @@
+source("src/NN3.R")
 library(keras)
 library(readr)
 library(purrr)
@@ -31,7 +32,7 @@ CV_AUC <- function(units_1, units_2, units_3,dropout_1, dropout_2,lso1,lso2,lso3
   Labels <- matrix()
   Labels <- NULL
   for(i in 1:V_fold){
-    idc <- sample(x[[i]], min(mapply(length, x)))
+    idc <- sample(folds[[i]], min(mapply(length, folds)))
     train_set <- data[-idc,]
     val_set <- data[idc,]
     
@@ -98,3 +99,6 @@ all_about_the_bayes <- BayesianOptimization(FUN = CV_AUC, bounds = search_bound,
                                             init_points = 10, init_grid_dt = search_grid, 
                                             n_iter = 10, acq = "ucb")
 
+all_about_the_bayes2 <- BayesianOptimization(FUN = CV_AUC, bounds = search_bound, 
+                                            init_points = 0, init_grid_dt = search_grid, 
+                                            n_iter = 50, acq = "ucb")

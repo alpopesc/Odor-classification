@@ -47,6 +47,7 @@ remove_constants <-function(data){
   vec
 }
 
+
 get.scale <- function(scaled) {
   if ("scaled:center" %in% names(attributes(scaled))) {
     center <- attr(scaled, "scaled:center")
@@ -66,7 +67,15 @@ scale.as <- function(x, scaled) {
   sweep(centered, 2, s[[2]], FUN = "/")
 }
 
-
+x1 <- data.frame(X = 5*rnorm(100), Y = 4*rnorm(100))
+View(x1)
+x1.scaled <- scale(x1)
+View(x1.scaled)
+get.scale(x1.scaled)
+x2 <- data.frame(X = 10*rnorm(70) + .2, Y = rep(0,70))
+View(x2)
+x2.scaled <- scale.as(x2, x1.scaled)
+View(x2.scaled)
 
 library(tensorflow)
 
@@ -123,8 +132,8 @@ hc <- findCorrelation(data_cor, cutoff=0.80)
 data <- data[,-c(sort(hc))]
 View(data)
 
-outliers <- depthout(data)
-data <- data[-outliers[["Location of Outlier"]],] 
+#outliers <- depthout(data)
+#data <- data[-outliers[["Location of Outlier"]],] 
 
 
 anyNA(data)
@@ -140,6 +149,12 @@ Test_const <- names(final_test) %in% i_const
 final_test <- final_test[!Test_const]
 
 
+View(data)
+
+d <- cbind(final_test[,1], scale.as(data.frame(final_test[,-1]), data.frame(data[, c(-1,-2)])))
+View(d)
+data$nC
+
 
 
 jj <- remove_zeros(final_test)
@@ -148,6 +163,7 @@ final_test <- final_test[!JJ_t]
 kk <- remove_constants(final_test)
 KK_t <- names(final_test) %in% kk
 final_test <- final_test[!KK_t]
+
 JJ <- names(data) %in% jj
 data <- data[!JJ]
 KK <- names(data) %in% kk
@@ -177,11 +193,11 @@ callback <- callback_early_stopping(
 
 
 nn1 <- keras_model_sequential() %>%
-  layer_dense(units = 30, activation = 'swish', bias_regularizer = regularizer_l2(0.5), kernel_regularizer = regularizer_l2(0.5), input_shape = ncol(train)-1) %>%
-  layer_dropout(rate = 0.4)%>%
-  layer_dense(units = 30, activation = 'swish', bias_regularizer = regularizer_l2(0.5), kernel_regularizer = regularizer_l2(0.5))%>%
-  layer_dropout(rate = 0.4)%>%
-  layer_dense(units = 30, activation = 'swish', bias_regularizer = regularizer_l2(0.5), kernel_regularizer = regularizer_l2(0.5))%>%
+  layer_dense(units = 27, activation = 'swish', bias_regularizer = regularizer_l2(0), kernel_regularizer = regularizer_l2(0), input_shape = ncol(data)-1) %>%
+  layer_dropout(rate = 0.7)%>%
+  layer_dense(units = 50, activation = 'swish', bias_regularizer = regularizer_l2(0), kernel_regularizer = regularizer_l2(0))%>%
+  layer_dropout(rate = 0.1548)%>%
+  layer_dense(units = 19.0750, activation = 'swish', bias_regularizer = regularizer_l2(0.4885), kernel_regularizer = regularizer_l2(0.4885))%>%
   layer_batch_normalization()%>%
   layer_dense(units = 1, activation = 'sigmoid') 
 
@@ -193,10 +209,10 @@ nn1 %>% compile(
 )
 
 history2 <- nn1 %>% fit(
-  as.matrix(train_set[,-1]),
-  as.logical(train_set[,1]),
+  as.matrix(data[,-1]),
+  as.logical(data[,1]),
   batch_size = nrow(data), 
-  epochs = 50,
+  epochs = 300,
   #callbacks = callback,
   validation_split = 0,
   verbose = 2,
@@ -216,7 +232,7 @@ attr(performance(nn1.ROCRpred_t, 'auc'), 'y.values')
 plot(nn1.ROCRperf, lwd = 2, col = "red")
 attr(performance(nn1.ROCRpred, 'auc'), 'y.values')
 
-View(nn1.pred)
+
 library(dplyr)
 x <- colnames(data[,-1])
 View(x)
