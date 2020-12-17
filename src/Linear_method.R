@@ -27,7 +27,7 @@ remove_zeros_col <- function(data) {
   data
 }
 
-data <- remove_zeros_col(raw_data)
+data <- remove_zeros_col(data)
 data$VALENCE.PLEASANTNESS <- NULL
 
 # Splitting the data into training and validation sets
@@ -44,14 +44,17 @@ data.validation <- data[-idx.train,]
 #Lasso regression
 x <- data.matrix(data.train[,names(data.train) != "SWEETORSOUR"])
 y <- data.train$SWEETORSOUR
+x.validation <- data.matrix(data.validation[,names(data.validation) != "SWEETORSOUR"])
+y.validation <- data.validation$SWEETORSOUR
+
 cv.lasso <- cv.glmnet(x, y , alpha = 1, nfold = 10)
 plot(cv.lasso)
 best.lasso <- glmnet(x, y, alpha = 1, lambda = cv.lasso$lambda.min)
 #outputs number of df
 best.lasso$df
-lasso.pred <- predict(best.lasso, s = cv.lasso$lambda.min, newx = data.matrix(data.validation[,names(data.validation) != "SWEETORSOUR"]), type = "response")
-plot(performance(prediction(lasso.pred, data.validation$SWEETORSOUR), 'tpr', 'fpr'))
-auc.lasso <- performance(prediction(lasso.pred, data.validation$SWEETORSOUR), measure = 'auc')
+lasso.pred <- predict(best.lasso, s = cv.lasso$lambda.min, newx = x.validation, type = "response")
+plot(performance(prediction(lasso.pred, y.validation), 'tpr', 'fpr'))
+auc.lasso <- performance(prediction(lasso.pred, y.validation), measure = 'auc')
 #AUC
 auc.lasso.value <- auc.lasso@y.values[[1]] 
 
