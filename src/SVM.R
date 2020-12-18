@@ -103,7 +103,6 @@ data <- data[,-c(sort(hc))]
 #data <- data[-outliers[["Location of Outlier"]],] 
 
 
-
 #Preprocessing of test_data
 final_test <- read_csv(file.path("data/test_data.csv"))
 final_test$VALENCE.PLEASANTNESS <- NULL

@@ -116,6 +116,8 @@ data <- data[!I_const]
 #Scaling of data
 data <- cbind(data[,2],scale(data[,-2]))
 anyNA(data)
+data <-data[ , colSums(is.na(data)) == 0]
+anyNA(data)
 
 
 #Removing correlated predictors
