@@ -14,13 +14,13 @@ library(tensorflow)
 
 
 use_condaenv('r-tensorflow')
-tensorflow::use_session_with_seed(100)
+tensorflow::tf$random$set_seed(55)
 
 get_skewed_names <- function(d){
   ret <- c()
   ret <- NULL
   for (i in colnames(d[,c(-1,-2)])) {
-    if (abs(skewness(data[[i]], type = 2)) > 1) {
+    if (abs(skewness(d[[i]], type = 2)) > 1) {
       ret <- append(ret, i)
     }
   }
@@ -30,17 +30,17 @@ get_skewed_names <- function(d){
 
 return_logd_data <- function(d, skw_names){
   for(i in skw_names){
-    if (0 %in% data[[i]]) {
-      for (j in 1:nrow(data)) {
-        if (d[j,i] != 0) {
-          d[j,i] <- log(data[j,i])
+    if (0 %in% d[[i]]) {
+      for (j in 1:nrow(d)) {
+        if (d[j,i] > 0) {
+          d[j,i] <- log(d[j,i])
         }
       }
-    } else {
+    }else{
       d[[i]] <- log(d[[i]])
     }
-    return(d)
   }
+  return(d)
 }
 
 
@@ -93,20 +93,6 @@ scale.as <- function(x, scaled) {
 
 K <- keras::backend()
 
-loss <- function(y_true,y_pred){
-  gamma=2
-  alpha=.25
-  pt_1 <- tf$where(tf$equal(y_true,1),y_pred,tf$ones_like(y_pred))
-  pt_0 <- tf$where(tf$equal(y_true,0),y_pred,tf$ones_like(y_pred))
-  
-  #clip to prevent NaNs and Infs
-  epsilon <- K$epsilon()
-  pt_1 <- K$clip(pt_1,epsilon,1.-epsilon)
-  pt_0 <- K$clip(pt_0,epsilon,1.-epsilon)
-  
-  return(-K$mean(alpha*K$pow(1.-pt_1,gamma)*K$log(pt_1))-K$mean((1-alpha)*K$pow(pt_0,gamma)*K$log(1.-pt_0)))
-  
-}
 
 
 #Preprocessing of training data
@@ -123,20 +109,18 @@ I_const <- names(data) %in% i_const
 data <- data[!I_const]
 
 #Feature engineering log
-sk_names <- get_skewed_names(data)
-data <- return_logd_data(data, sk_names)
+#sk_names <- get_skewed_names(data)
+#data <- return_logd_data(data, sk_names)
 
 
 #Scaling of data
-data <- cbind(data[,c(1,2)],scale(data[,c(-1,-2)]))
-anyNA(data)
-data <-data[ , colSums(is.na(data)) == 0]
+data <- cbind(data[,2],scale(data[,-2]))
 anyNA(data)
 
 
 #Removing correlated predictors
-data_cor <- cor(as.matrix(data))
-hc <- findCorrelation(data_cor, cutoff=0.96) 
+data_cor <- cor(as.matrix(data[,-2]))
+hc <- findCorrelation(data_cor, cutoff=0.96) +1
 data <- data[,-c(sort(hc))]
 
 

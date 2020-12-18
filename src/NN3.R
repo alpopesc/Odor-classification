@@ -7,10 +7,8 @@ library(embed)
 library(ROCR)
 library(OutlierDetection)
 use_condaenv('r-tensorflow')
-library(tree)
-library(randomForest)
 library(caret)
-tensorflow::use_session_with_seed(100)
+tensorflow::tf$random$set_seed(55)
 
 get_skewed_names <- function(d){
   ret <- c()
@@ -35,8 +33,8 @@ return_logd_data <- function(d, skw_names){
     } else {
       d[[i]] <- log(d[[i]])
     }
-    return(d)
   }
+  return(d)
 }
 
 
@@ -97,23 +95,6 @@ scale.as <- function(x, scaled) {
   sweep(centered, 2, s[[2]], FUN = "/")
 }
 
-K <- keras::backend()
-
-loss <- function(y_true,y_pred){
-  gamma=2
-  alpha=.25
-  pt_1 <- tf$where(tf$equal(y_true,1),y_pred,tf$ones_like(y_pred))
-  pt_0 <- tf$where(tf$equal(y_true,0),y_pred,tf$ones_like(y_pred))
-  
-  #clip to prevent NaNs and Infs
-  epsilon <- K$epsilon()
-  pt_1 <- K$clip(pt_1,epsilon,1.-epsilon)
-  pt_0 <- K$clip(pt_0,epsilon,1.-epsilon)
-  
-  return(-K$mean(alpha*K$pow(1.-pt_1,gamma)*K$log(pt_1))-K$mean((1-alpha)*K$pow(pt_0,gamma)*K$log(1.-pt_0)))
-  
-}
-
 
 #Preprocessing of training data
 data <- read_csv("data/training_data.csv")
@@ -130,24 +111,23 @@ data <- data[!I_const]
 
 
 #Feature engineering log
-sk_names <- get_skewed_names(data)
-data <- return_logd_data(data, sk_names)
+#sk_names <- get_skewed_names(data)
+#data <- return_logd_data(data, sk_names)
 
 
 #Scaling of data
-data <- cbind(data[,c(1,2)],scale(data[,c(-1,-2)]))
+data <- cbind(data[,2],scale(data[,-2]))
 anyNA(data)
-data <-data[ , colSums(is.na(data)) == 0]
-anyNA(data)
+
 
 
 #Removing correlated predictors
-data_cor <- cor(as.matrix(data))
-hc <- findCorrelation(data_cor, cutoff=0.96) 
+data_cor <- cor(as.matrix(data[,-2]))
+hc <- findCorrelation(data_cor, cutoff=0.96) +1
 data <- data[,-c(sort(hc))]
 
 
-#Removing outliers
+#Removing outliers (Does not improve auc)
 #outliers <- depthout(data)
 #data <- data[-outliers[["Location of Outlier"]],] 
 
@@ -161,8 +141,7 @@ final_test$Intensity <- as.numeric(as.logical(final_test$Intensity == "high" ))
 x <- colnames(data[,-2])
 final_test <- subset(final_test, select = x)
 
-#Log Feature on test_data
-final_test <- return_logd_data(final_test, sk_names)
+#Scale Feature on test_data
 final_test <- cbind(final_test[,1], scale.as(data.frame(final_test[,-1]), data.frame(data[, c(-1,-2)])))
 
 View(data)
@@ -191,7 +170,7 @@ callback <- callback_early_stopping(
   restore_best_weights = TRUE)
 
 nn1 <- keras_model_sequential() %>%
-  layer_dense(units = 36.681, activation = 'swish', bias_regularizer = regularizer_l2(0.3624), kernel_regularizer = regularizer_l2(0.3624), input_shape = ncol(data)-1) %>%
+  layer_dense(units = 36.681, activation = 'swish', bias_regularizer = regularizer_l2(0.3624), kernel_regularizer = regularizer_l2(0.3624), input_shape = ncol(train)-1) %>%
   layer_dropout(rate = 0.393)%>%
   layer_dense(units = 22.859, activation = 'swish', bias_regularizer = regularizer_l2(0.2483), kernel_regularizer = regularizer_l2(0.2483))%>%
   layer_dropout(rate = 0.494)%>%
@@ -207,9 +186,9 @@ nn1 %>% compile(
 )
 
 history2 <- nn1 %>% fit(
-  as.matrix(data[,-2]),
-  as.logical(data[,2]),
-  batch_size = nrow(data), 
+  as.matrix(train[,-2]),
+  as.logical(train[,2]),
+  batch_size = nrow(train), 
   epochs = 56,
   #callbacks = callback,
   validation_split = 0,
@@ -237,7 +216,7 @@ final.pred <- data.frame(cbind(nn1.pred))
 final.pred$Id <- 1:68
 names(final.pred)[1] <- "SWEETORSOUR"
 final.pred <- final.pred[c("Id", "SWEETORSOUR")]
-write.table(final.pred, "eight_try.csv", row.names=FALSE, sep=",")
+write.table(final.pred, "FinalNN_try.csv", row.names=FALSE, sep=",")
 mean((nn1.pred[,1] > 0.5) == (test[,2]))
 
 
