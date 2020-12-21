@@ -17,11 +17,8 @@ The project is contained in the repository BIO322-Classification. You can find :
 * a repository **src** that contains our code (in the form of R scripts) that contains the code for :
   * Exploration : we explored the data and visualize it
   * Linear method : The code used to produce our best results with logistic regression
-<<<<<<< HEAD
   * Non-linear method : The code used to produce our best results with neural networks,SVM trees and random forests.
-=======
-  * Non-linear method : The code used to produce our best results with neural networks, trees, random forests and SVM.
->>>>>>> 85048560c8bf75f6fb4de74dd0dda1ad30099e46
+
 * a repository **plots** that contains all the plots produced during the data exploration.
 * our best results produced for the Kaggle competition in a .csv file 
 * Our report in PDF file that presents the different models we built and our best results
