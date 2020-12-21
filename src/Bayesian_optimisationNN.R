@@ -16,34 +16,19 @@ library(tensorflow)
 use_condaenv('r-tensorflow')
 tensorflow::tf$random$set_seed(55)
 
-get_skewed_names <- function(d){
-  ret <- c()
-  ret <- NULL
-  for (i in colnames(d[,c(-1,-2)])) {
-    if (abs(skewness(d[[i]], type = 2)) > 1) {
-      ret <- append(ret, i)
+
+
+############################################## USEFUL FUNCTIONS
+
+remove_zeros <- function(data){
+  vec <- c()
+  for(i in colnames(data)){
+    if(all(data[,i] == 0)){
+      vec <- append(i,vec)
     }
   }
-  ret
+  vec
 }
-
-
-return_logd_data <- function(d, skw_names){
-  for(i in skw_names){
-    if (0 %in% d[[i]]) {
-      for (j in 1:nrow(d)) {
-        if (d[j,i] > 0) {
-          d[j,i] <- log(d[j,i])
-        }
-      }
-    }else{
-      d[[i]] <- log(d[[i]])
-    }
-  }
-  return(d)
-}
-
-
 
 remove_zeros <- function(data){
   vec <- c()
@@ -91,14 +76,34 @@ scale.as <- function(x, scaled) {
   sweep(centered, 2, s[[2]], FUN = "/")
 }
 
+
 K <- keras::backend()
 
+loss <- function(y_true,y_pred){
+  gamma=2.
+  alpha=.25
+  pt_1 <- tf$where(tf$equal(y_true,1),y_pred,tf$ones_like(y_pred))
+  
+  pt_0 <- tf$where(tf$equal(y_true,0),y_pred,tf$ones_like(y_pred))
+  
+  #clip to prevent NaNs and Infs
+  
+  epsilon <- K$epsilon()
+  
+  pt_1 <- K$clip(pt_1,epsilon,1.-epsilon)
+  pt_0 <- K$clip(pt_0,epsilon,1.-epsilon)
+  
+  return(-K$mean(alpha*K$pow(1.-pt_1,gamma)*K$log(pt_1))-K$mean((1-alpha)*K$pow(pt_0,gamma)*K$log(1.-pt_0)))
+  
+}
 
 
-#Preprocessing of training data
+##################################################################################################
+
+################################################## PREPORCESSING OF DATA
 data <- read_csv("data/training_data.csv")
 data$Intensity <- as.numeric(as.logical(data$Intensity == "high" ))
-data$SWEETORSOUR <- as.numeric(data$SWEETORSOUR)
+#data$SWEETORSOUR <- as.numeric(data$SWEETORSOUR)
 data$VALENCE.PLEASANTNESS <- NULL
 data <- na.omit(data)
 i_zeros <- remove_zeros(data)
@@ -108,23 +113,11 @@ i_const <- remove_constants(data)
 I_const <- names(data) %in% i_const
 data <- data[!I_const]
 
-#Feature engineering log
-#sk_names <- get_skewed_names(data)
-#data <- return_logd_data(data, sk_names)
-
-
-#Scaling of data
-data <- cbind(data[,2],scale(data[,-2]))
-anyNA(data)
-data <-data[ , colSums(is.na(data)) == 0]
-anyNA(data)
-
-
-#Removing correlated predictors
-data_cor <- cor(as.matrix(data[,-2]))
-hc <- findCorrelation(data_cor, cutoff=0.96) +1
+#Removing correlated predictors and scaling
+data_cor <- cor(as.matrix(data[,-2])) 
+hc <- findCorrelation(data_cor, cutoff=0.99) +1
 data <- data[,-c(sort(hc))]
-
+data <- cbind(data[,2], scale(data[,-2]))
 
 #Removing outliers
 #outliers <- depthout(data)
@@ -142,7 +135,7 @@ cvFolds <- function(Y_, V){
 
 
 CV_AUC <- function(units_1, units_2, units_3,dropout_1, dropout_2,lso1,lso2,lso3, epos, i_data = data, V_fold = 5){
-  folds <- cvFolds(i_data[,2], V_fold)
+  folds <- cvFolds(i_data[,1], V_fold)
   Predictions <- matrix()
   Predictions <- NULL
   Labels <- matrix()
@@ -171,8 +164,8 @@ CV_AUC <- function(units_1, units_2, units_3,dropout_1, dropout_2,lso1,lso2,lso3
     )
 
     history2 <- nn1 %>% fit(
-      as.matrix(train_set[,-2]),
-      as.logical(train_set[,2]),
+      as.matrix(train_set[,-1]),
+      as.logical(train_set[,1]),
       batch_size = nrow(train_set), 
       epochs = epos,
       #callbacks = callback,
@@ -181,14 +174,19 @@ CV_AUC <- function(units_1, units_2, units_3,dropout_1, dropout_2,lso1,lso2,lso3
       class_weight = list("0"=0.82,"1"=1.283)
     )
 
-    Predictions <- cbind(Predictions, predict(nn1, as.matrix(val_set[,-2])))
-    Labels <- cbind(Labels, as.matrix(val_set[,2]))
+    Predictions <- cbind(Predictions, predict(nn1, as.matrix(val_set[,-1])))
+    Labels <- cbind(Labels, as.matrix(val_set[,1]))
   }
   
   return(list(Score = cvAUC(Predictions,Labels)[["cvAUC"]], Pred = 0))
 }
 
-cv <- CV_AUC(30, 30, 30, 0.4, 0.4, 0.5, 0.5, 0.5, 150, data, 5)
+
+#Examples of previously used model after it was decided to reduces flexibilty of NN
+cv1 <- CV_AUC(30, 15, 10, 0.4, 0.4, 0.4, 0.4, 0.4, 56, data, 10) 
+cv2 <- CV_AUC(36, 23, 39, 0.393, 0.494, 0.3624, 0.2483, 0, 56, data, 10)
+
+
 
 #Boundries
 search_bound <- list(units_1 = c(5,50),
@@ -214,5 +212,7 @@ search_grid <- data.frame(units_1 = sample(5:50,10),
                           
 
 all_about_the_bayes <- BayesianOptimization(FUN = CV_AUC, bounds = search_bound, 
-                                            init_points = 0, init_grid_dt = search_grid, 
-                                            n_iter = 20, acq = "ucb")
+                                            init_points = 5, init_grid_dt = search_grid, 
+                                            n_iter = 100, acq = "ucb")
+
+

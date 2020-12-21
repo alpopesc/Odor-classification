@@ -56,7 +56,7 @@ forests.ROCRpred <- prediction(predValid, data.validation$SWEETORSOUR)
 forests.ROCRperf <- performance(forests.ROCRpred, 'tpr', 'fpr')
 plot(forests.ROCRperf, lwd = 2, col = "blue")
 print(paste('AUC of random forests:', performance(forests.ROCRpred, 'auc')@y.values, sep = ' '))
-#0.58
+
 
 #Look at AUC of training set
 

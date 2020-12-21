@@ -11,7 +11,10 @@ library(rBayesianOptimization)
 library(cvAUC)
 library(PerformanceAnalytics)
 library(tensorflow)
-library(GA)
+library(bestNormalize)
+library(kernlab)
+library(tidymodels)
+library(themis)
 
 use_condaenv('r-tensorflow')
 tensorflow::tf$random$set_seed(55)
@@ -68,7 +71,7 @@ scale.as <- function(x, scaled) {
 #Preprocessing of training data
 data <- read_csv("data/training_data.csv")
 data$Intensity <- as.numeric(as.logical(data$Intensity == "high" ))
-data$SWEETORSOUR <- as.numeric(data$SWEETORSOUR)
+#data$SWEETORSOUR <- as.numeric(data$SWEETORSOUR)
 data$VALENCE.PLEASANTNESS <- NULL
 data <- na.omit(data)
 i_zeros <- remove_zeros(data)
@@ -78,46 +81,29 @@ i_const <- remove_constants(data)
 I_const <- names(data) %in% i_const
 data <- data[!I_const]
 
-#Feature engineering log
-#sk_names <- get_skewed_names(data)
-#data <- return_logd_data(data, sk_names)
 
-
-#Scaling of data
-data <- cbind(data[,2],scale(data[,-2]))
-anyNA(data)
-data <-data[ , colSums(is.na(data)) == 0]
-anyNA(data)
-
-
-#Removing correlated predictors
+#Removing correlated predictors and scaling
 data_cor <- cor(as.matrix(data[,-2]))
 hc <- findCorrelation(data_cor, cutoff=0.96) + 1
 data <- data[,-c(sort(hc))]
+data <- cbind(data[,2], scale(data[,-2]))
 
 #Transforming SWEETORSOUR column to categorical
 data$SWEETORSOUR <- as.factor(as.logical(data$SWEETORSOUR))
 
 
 
-
-
-library(tidymodels)
-
 View(data)
 
-set.seed(55)
 
 
 folds <- vfold_cv(data, v = 10)
-
-library(themis)
 View(data)
 data_pre_proc <-
   recipe(SWEETORSOUR ~ ., data = data)
 
 svm_mod <-
-  svm_rbf(mode = "classification", cost = tune(), rbf_sigma = tune(), scale = FALSE) %>%
+  svm_rbf(mode = "classification", cost = tune(), rbf_sigma = tune()) %>%
   set_engine("kernlab")
 
 svm_wflow <-
@@ -142,8 +128,8 @@ search_res <-
     # Generate five at semi-random to start
     initial = 5,
     iter = 200,
-    # How to measure performance?
+    # How to measure performance
     metrics = metric_set(roc_auc),
-    control = control_bayes(no_improve = 30, verbose = TRUE)
+    control = control_bayes(no_improve = 40, verbose = TRUE)
   )
 
