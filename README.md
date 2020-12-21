@@ -26,5 +26,5 @@ The project is contained in the repository BIO322-Classification. You can find :
 ## How to run our code
 **R version is 4.0.3**
 In order to run our R scripts, please be in the repository BIO322-Classification.
-The different results can be reproduced by running the R scripts in the repository src. The code in the files Linear_method_skewness.R, RF_tuning.R, Bayes_optimisationNN.r and Bayes_optimisationSVM.R are used to tune some hyper-parameters and estimates errors with CV. Note that depending on the number of iterations specified it can take very long to get a result.
+The different results can be reproduced by running the R scripts in the repository src. The code in the files Linear_method_skewness.R, RF_tuning.R, Bayes_optimisationNN.r and Bayes_optimisationSVM.R are used to tune some hyper-parameters and estimates errors with CV. Note that depending on the number of iterations specified, it can take very long to get a result.
 
